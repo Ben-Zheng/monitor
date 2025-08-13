@@ -233,3 +233,7 @@ type PagedResponseTask struct {
 	HasNext    bool               `json:"has_next"`
 	Data       []dao.TaskMetaData `json:"data"`
 }
+
+type GenerateLedgerResp struct {
+	LedgerName string `json:"fileName"`
+}

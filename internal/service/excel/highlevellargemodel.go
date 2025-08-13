@@ -30,15 +30,15 @@ var columns = []ExcelColumn{
 
 // DataRow 定义数据行结构
 type DataRow struct {
-	Env         string  //环境
-	ComputeP    float64 // 需要合并的算力列
-	Model       string  // 显卡型号
-	ServerNum   int     //服务器数量
-	CardNum     int     //显卡张数
-	ModelUsed   string  //模型名称
-	UsedCompute float64 //使用算力
-	UsedCard    int     //使用卡数
-	Remarks     string  //备注
+	Env         string  `json:"env"`         //环境
+	ComputeP    float64 `json:"computeP"`    // 算力列
+	Model       string  `json:"model"`       // 显卡型号
+	ServerNum   int     `json:"serverNum"`   //服务器数量
+	CardNum     int     `json:"cardNum"`     //显卡张数
+	ModelUsed   string  `json:"modelUsed"`   //模型名称
+	UsedCompute float64 `json:"usedCompute"` //使用算力
+	UsedCard    int     `json:"usedCard"`    //使用卡数
+	Remarks     string  `json:"remarks"`     //备注
 }
 type HighLevel struct {
 }
@@ -184,14 +184,14 @@ func (h *HighLevel) GenerateLedger(newData []DataRow) string {
 	}
 	// 5. 将 Excel 内容写入缓冲区
 	timeStr := util.GetTimeMinite()
-	fileName := "新算力精确分布表" + timeStr
+	fileName := "新算力精确分布表" + timeStr + ".xlsx"
 	fmt.Println("Excel文件生成成功: 新算力精确分布表.xlsx")
-	filePath := fmt.Sprintf("./flies/%s.xlsx", fileName)
-	if err := f.SaveAs("新算力精确分布表.xlsx"); err != nil {
+	filePath := fmt.Sprintf("./files/%s", fileName)
+	if err := f.SaveAs(filePath); err != nil {
 		log.Fatal(err)
 		return ""
 	}
-	return filePath
+	return fileName
 
 	//return buf
 }

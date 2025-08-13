@@ -102,7 +102,11 @@ func (l *LedgerData) GetModelComputingDetail(from, to int64) ([]ModelLedgerResp,
 			modelLedgerResp.NodeNum = v.NodesNum
 			modelLedgerResp.Pvalue = v.Pvalue
 		}
-		maxConcurr := sceneMap[modelName].MaxConcurrency
+		var maxConcurr int64
+		if _, exist := sceneMap[modelName]; exist {
+			maxConcurr = sceneMap[modelName].MaxConcurrency
+		}
+
 		modelLedgerResp.MaxConcurrency = maxConcurr
 		modelLedgerResp.Model = modelName
 		modelLedgerResp.UsedCards = usedCards
@@ -163,10 +167,15 @@ func (l *LedgerData) MakeLedgerIntelligent(from int64, to int64) ([]InteResp, er
 		var intellResp InteResp
 		token := v.Token
 		//当前为mock
+		countInvoking := make(map[string]int64, 0)
+		if _, exist := InvokingMap[token]; exist {
+			countInvoking = InvokingMap[k]
+		}
 
-		countInvoking := InvokingMap[k]
 		copier.Copy(&intellResp, v)
-		intellResp.CountInvoking = countInvoking[token]
+		if _, exist := countInvoking[token]; exist {
+			intellResp.CountInvoking = countInvoking[token]
+		}
 		IntelResps = append(IntelResps, intellResp)
 	}
 	return IntelResps, nil
@@ -211,7 +220,10 @@ func (l *LedgerData) MakeLedgerLargeModelDetail(from int64, to int64) ([]InteRes
 	lmResps := make([]InteResp, 0)
 	for scene, _ := range sceneManager {
 		var lmResp InteResp
-		modelInfo := sceneInfo[scene]
+		modelInfo := make(map[string]int64, 0)
+		if _, exist := sceneInfo[scene]; exist {
+			modelInfo = sceneInfo[scene]
+		}
 		for model := range modelInfo {
 			lmResp.ModelName = model
 			lmResp.Token = scene

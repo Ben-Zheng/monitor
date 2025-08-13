@@ -104,11 +104,11 @@ func main() {
 
 		ledger := engine.Group("/apis/gpu.monitor.io/ledger")
 		ledger.Use(api.MakeToken())
-		model.GET("/tasklist", lg.LedgerTasksList)   //任务列表
-		model.GET("/Preview", lg.LedgerAllInfo)      //台账预览
-		model.GET("/download", lg.DownloadLedger)    //下载台账
-		model.POST("/saveledger", lg.GenerateLedger) //生成任务，生成台账
-		model.POST("/savetask", lg.GenerateTask)     //生成任务，生成台账
+		ledger.GET("/tasklist", lg.LedgerTasksList)   //任务列表
+		ledger.GET("/Preview", lg.LedgerAllInfo)      //台账预览
+		ledger.GET("/download", lg.DownloadLedger)    //下载台账
+		ledger.POST("/saveledger", lg.GenerateLedger) //生成任务，生成台账
+		ledger.POST("/savetask", lg.GenerateTask)     //生成任务，生成台账
 	}
 	addr := fmt.Sprintf(":%d", config.GetServerConfig().Port)
 

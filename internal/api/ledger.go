@@ -176,7 +176,7 @@ func (t *LedgerService) GenerateLedger(ctx *gin.Context) {
 	log.Println("GenerateLedger", params)
 	// 获得post的数据，并转成excel保存到本地
 	ledgerType := ledger.LedgerClass(params.LedgerType)
-	var path string
+	var filename string
 
 	switch ledgerType {
 	case ledger.HighLevelLedgerClass:
@@ -186,7 +186,7 @@ func (t *LedgerService) GenerateLedger(ctx *gin.Context) {
 			return
 		}
 		h := excel.NewHighLevel()
-		path = h.GenerateLedger(records)
+		filename = h.GenerateLedger(records)
 
 	case ledger.LargeModelLedgerClass:
 		var records []excel.ServiceRecord
@@ -195,7 +195,7 @@ func (t *LedgerService) GenerateLedger(ctx *gin.Context) {
 			return
 		}
 		h := excel.NewLargeInvokingexcel()
-		path = h.GenerateLedgerExcel(records)
+		filename = h.GenerateLedgerExcel(records)
 
 	case ledger.LargeModelSupportLedgerClass:
 		var records []excel.ServiceRecord
@@ -204,7 +204,7 @@ func (t *LedgerService) GenerateLedger(ctx *gin.Context) {
 			return
 		}
 		h := excel.NewLargeInvokingexcel()
-		path = h.GenerateLedgerExcel(records)
+		filename = h.GenerateLedgerExcel(records)
 
 	case ledger.SceneDetailLedgerClass:
 		var records []excel.Record
@@ -213,11 +213,12 @@ func (t *LedgerService) GenerateLedger(ctx *gin.Context) {
 			return
 		}
 		s := excel.NewServiceLedgerDetail()
-		path = s.GenerateServiceLedger(records)
+		filename = s.GenerateServiceLedger(records)
 	}
-
+	var ledgerinfo types.GenerateLedgerResp
+	ledgerinfo.LedgerName = filename
 	ctx.JSON(http.StatusOK, result.Success(gin.H{
-		"data": path,
+		"data": ledgerinfo,
 	}))
 }
 

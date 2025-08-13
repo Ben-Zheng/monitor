@@ -10,16 +10,16 @@ import (
 
 // ServiceRecord 定义服务调用记录结构
 type ServiceRecord struct {
-	Environment       string //环境
-	SerialNumber      int    //序号
-	Scene             string //场景名称
-	Department        string //开发部门
-	ApplyModel        string //应用模式
-	ResponsiblePerson string //负责人
-	Frequency         string //调用方式
-	Model             string // 调用模型
-	Concurrency       int    //申请并发
-	CallVolume        int    //本期调用
+	Environment       string `json:"environment"`       //环境
+	SerialNumber      int    `json:"serialNumber"`      //序号
+	Scene             string `json:"scene"`             //场景名称
+	Department        string `json:"department"`        //开发部门
+	ApplyModel        string `json:"applyModel"`        //应用模式
+	ResponsiblePerson string `json:"responsiblePerson"` //负责人
+	Frequency         string `json:"frequency"`         //调用方式
+	Model             string `json:"model"`             // 调用模型
+	Concurrency       int    `json:"concurrency"`       //申请并发
+	CallVolume        int    `json:"callVolume"`        //本期调用
 }
 
 type LargeInvokingexcel struct {
@@ -252,12 +252,12 @@ func (l *LargeInvokingexcel) GenerateLedgerExcel(newData []ServiceRecord) string
 	//	os.Exit(1)
 	//}
 	timeStr := util.GetTimeMinite()
-	fileName := "智能平台大模型服务调用情况表" + timeStr
-	filePath := fmt.Sprintf("./flies/%s.xlsx", fileName)
+	fileName := "智能平台大模型服务调用情况表" + timeStr + ".xlsx"
+	filePath := fmt.Sprintf("./files/%s", fileName)
 
 	if err := f.SaveAs(filePath); err != nil {
 		log.Println(err)
-		return filePath
+		return fileName
 	}
 	return ""
 

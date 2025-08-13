@@ -11,14 +11,14 @@ import (
 )
 
 type Record struct {
-	Environment string
-	Model       string
-	Scenario    string
-	Department  string
-	Center      string
-	Manager     string
-	Concurrency int
-	Success     int
+	Environment string `json:"environment"`
+	Model       string `json:"model"`
+	Scenario    string `json:"scenario"`
+	Department  string `json:"department"`
+	Center      string `json:"center"`
+	Manager     string `json:"manager"`
+	Concurrency int    `json:"concurrency"`
+	Success     int    `json:"success"`
 }
 
 type ServiceLedgerDetail struct {
@@ -229,12 +229,12 @@ func (s *ServiceLedgerDetail) GenerateServiceLedger(data []Record) string {
 
 	// ================= 7. 保存文件 =================
 	timeStr := util.GetTimeMinite()
-	fileName := "智能平台服务调用情况表" + timeStr
-	filePath := fmt.Sprintf("./flies/%s.xlsx", fileName)
+	fileName := "智能平台服务调用情况表" + timeStr + ".xlsx"
+	filePath := fmt.Sprintf("./files/%s", fileName)
 
 	if err := f.SaveAs(filePath); err != nil {
 		log.Println(err)
-		return filePath
+		return fileName
 	}
 	return ""
 }
