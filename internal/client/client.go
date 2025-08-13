@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"github.com/go-resty/resty/v2"
 	"golang.org/x/net/context"
 	"io/ioutil"
@@ -32,6 +33,106 @@ func NewDCEClient(ctx context.Context, dceURL string, skipVerify bool) *DCEClien
 
 func getDceToken(ctx context.Context) string {
 	return config.GetGrafanaQueryConfig().Token
+}
+
+// 定义接口响应结构
+type ApiResponse struct {
+	Code    int          `json:"code"`
+	Message string       `json:"message"`
+	Data    ResponseData `json:"result"`
+}
+
+type ResponseData struct {
+	Current int         `json:"current"` // 当前页码
+	Size    int         `json:"size"`    // 每页数量
+	Pages   int         `json:"pages"`
+	Total   int         `json:"total"`   // 总数据量
+	Items   []TokenItem `json:"records"` // 实际数据项
+}
+
+// 定义接口请求结构
+type pageparam struct {
+	page     int `json:"pageNum"`  // 当前页码
+	pageSize int `json:"pageSize"` // 每页数量
+}
+
+type orderparam struct {
+	column string `json:"column"`
+	order  string `json:"order"`
+}
+
+type ReqParam struct {
+	PageParam  pageparam  `json:"pageParam"`
+	OrderParam orderparam `json:"orderParam"`
+}
+
+type TokenItem struct {
+	Id                 string `json:"id"`
+	CallModelName      string `json:"callModelName"`
+	ApisixScenarioName string `json:"apisixScenarioName"`
+	CallModelId        string `json:"callModelId"`
+	DevDept            string `json:"devDept"`
+	DevManager         string `json:"devManager"`
+	EnvAlias           string `json:"envAlias"`
+	EnvName            string `json:"envName"`
+	ModelName          string `json:"modelName"`
+	Token              string `json:"token"`
+	MaxConcurrency     int    `json:"maxConcurrency"`
+	Status             string `json:"status"`
+}
+
+// 获取场景管理分页接口的所有数据
+func (c *DCEClient) GetSceneManageInfo(url string, pageSize int) ([]TokenItem, error) {
+	// 初始化返回结果
+	var allItems []TokenItem
+
+	// 设置起始页码
+	currentPage := 1
+	totalPages := 1
+	var reqParam ReqParam
+	for currentPage <= totalPages {
+		// 准备请求体
+		reqParam.PageParam = pageparam{currentPage, pageSize}
+		reqParam.OrderParam = orderparam{"createTime", "decs"}
+
+		resp, err := c.client.R().SetAuthToken(getDceToken(c.ctx)).
+			SetBody(reqParam).Post(url)
+		if err != nil {
+			log.Println(err)
+		}
+
+		// 读取响应体
+		bodyBytes := resp.Body()
+		if err != nil {
+			return nil, fmt.Errorf("读取响应体失败: %v", err)
+		}
+
+		// 解析响应
+		var response ApiResponse
+		if err := json.Unmarshal(bodyBytes, &response); err != nil {
+			return nil, fmt.Errorf("解析JSON失败: %v, 原始响应: %s", err, string(bodyBytes))
+		}
+		// 首次请求时设置总页数
+		if currentPage == 1 {
+			totalItems := response.Data.Total
+			totalPages = response.Data.Pages
+			// 预分配切片容量以优化性能
+			allItems = make([]TokenItem, 0, totalItems)
+		}
+
+		// 检查API响应状态码
+		if response.Code != 0 && response.Code != 200 {
+			return nil, fmt.Errorf("接口返回错误: 代码: %d, 消息: %s", response.Code, response.Message)
+		}
+
+		// 添加到总结果
+		allItems = append(allItems, response.Data.Items...)
+
+		// 更新页码
+		currentPage++
+	}
+
+	return allItems, nil
 }
 
 func (c *DCEClient) MakeGetReqRange(query map[string]string, url string) (*types.VectorResponse, error) {

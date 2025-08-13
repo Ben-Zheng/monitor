@@ -12,7 +12,6 @@ import (
 	"monitor/internal/types"
 	"monitor/util"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -22,6 +21,7 @@ type ModelRepo interface {
 	ModelCountWithLog(req models.ModelWithCodeRequest) (*types.LogDetailResp, error)
 	ModelRequestTime(req models.ModelWithCodeRequest) (*types.ModelRequestTimeResp, error)
 	ModelsDetailInfo(req models.ModelWithCodeRequest) (*types.ModelDetailResp, error)
+	ModelsDetailTrend(req models.ModelWithCodeRequest) (*types.ModelDetailTrend, error)
 }
 
 type ModelDomain struct {
@@ -42,61 +42,42 @@ func (s *ModelDomain) ModelsDetailInfo(req models.ModelWithCodeRequest) (*types.
 	from := util.ToInt64(req.From)
 	to := util.ToInt64(req.To)
 	timeDifferenceHours := float64(to-from) / (1000 * 60 * 60)
-	resultModel, err := ec.Count(from, to, "", "model", req.ModelName)
+	resultScene, err := ec.CountSceneWithModel(from, to, req.ModelName)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return nil, err
 	}
-	k := req.ModelName
-	v := resultModel[k]
 
-	var count int64
-	sceneNum := len(v)
-	for _, ts := range v {
-		count += ts
+	resultScenes := make([]types.SceneCountData, 0)
+	for k := range resultScene {
+		SceneName, exist := s.SceneMap[k]
+		if !exist {
+			continue
+		}
+
+		var sceneData types.SceneCountData
+		useTimes := resultScene[k]
+		diff_scene := float64(useTimes) / timeDifferenceHours
+		sceneData.Qps = math.Round(diff_scene*100) / 100
+		sceneData.SceneName = SceneName
+		sceneData.SceneLabel = k
+		sceneData.SceneCount = int(useTimes)
+		resultScenes = append(resultScenes, sceneData)
 	}
 
-	var data models.ModelCard
-	data.ModelName = k
-	data.Scene = sceneNum
-	data.Invoking = count
-	diff := float64(count) / timeDifferenceHours
-	data.Qps = math.Round(diff*100) / 100
+	return &types.ModelDetailResp{SceneDetails: resultScenes}, nil
+}
 
-	gserver := NewModelsServer(s.ctx, from, to)
-	ModelPods := gserver.GetPods(req.ModelName)
-	details := make([]models.ModelPodDetail, 0)
-	for i := range ModelPods {
-		var d models.ModelPodDetail
-		modelPod := ModelPods[i]
-		d.Cluster = modelPod.cluster
-		if modelPod.cpu_usage == "" {
-			d.CpuUsage = 0
-		} else {
-			tsFloat, err := strconv.ParseFloat(modelPod.cpu_usage, 64)
-			if err != nil {
-				log.Println(err)
-				d.CpuUsage = 0
-			}
-			d.CpuUsage = tsFloat
-		}
-		if modelPod.mem_usage == "" {
-			d.MemUsage = 0
-		} else {
-			tsFloat, err := strconv.ParseFloat(modelPod.mem_usage, 64)
-			if err != nil {
-				log.Println(err)
-				d.MemUsage = 0
-			}
-			d.MemUsage = tsFloat
-		}
-		d.ClusterName = modelPod.clustername
-		d.PodStatus = modelPod.status
-		d.ModelName = modelPod.llm_model
-		d.Pod = modelPod.pod
-		details = append(details, d)
+func (s *ModelDomain) ModelsDetailTrend(req models.ModelWithCodeRequest) (*types.ModelDetailTrend, error) {
+	appConfig := config.GetEsConfig()
+	ec := es.NewESService(appConfig)
+	resultTrend, err := ec.CountDailyLogsByFixedAuthModel(req.ModelName, req.AuthCode)
+	if err != nil {
+		log.Println(err)
+		return nil, err
 	}
-	return &types.ModelDetailResp{ModelDetail: data, ModelPodDetails: details}, nil
+
+	return &types.ModelDetailTrend{ModelDetailTrend: resultTrend}, nil
 }
 
 func (s *ModelDomain) ModelsCountCards(req models.ModelsListRequest) (*types.PagedModelsResponse, error) {
@@ -107,12 +88,14 @@ func (s *ModelDomain) ModelsCountCards(req models.ModelsListRequest) (*types.Pag
 	timeDifferenceHours := float64(to-from) / (1000 * 60 * 60)
 	resultScence, err := ec.CountByModel(from, to)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return nil, err
 	}
 
 	resultSceneData := make([]models.ModelCard, 0)
+	gserver := NewModelsServer(s.ctx, from, to)
 	for k, v := range resultScence {
+		modelPodInfo := gserver.GetPods(k)
 		var count int64
 		sceneNum := len(v)
 		for _, ts := range v {
@@ -125,6 +108,8 @@ func (s *ModelDomain) ModelsCountCards(req models.ModelsListRequest) (*types.Pag
 		data.Invoking = count
 		diff := float64(count) / timeDifferenceHours
 		data.Qps = math.Round(diff*100) / 100
+		data.Status = modelPodInfo.status
+		data.Url = modelPodInfo.url
 		resultSceneData = append(resultSceneData, data)
 	}
 	totalItems := len(resultSceneData)
@@ -157,7 +142,7 @@ func (s *ModelDomain) ModelCountWithLog(req models.ModelWithCodeRequest) (*types
 	from := util.ToInt64(req.From)
 	to := util.ToInt64(req.To)
 
-	resultScence, err := ec.GetDocumentFields(from, to, "failed", "", req.ModelName)
+	resultScence, err := ec.GetDocumentFields(from, to, "failed", req.AuthCode, req.ModelName)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
@@ -192,10 +177,11 @@ func (s *ModelDomain) ModelCountWithLog(req models.ModelWithCodeRequest) (*types
 		logDetails = append(logDetails, data)
 	}
 	return &types.LogDetailResp{
-		Logs: logDetails, //暂时给5条
+		Logs: logDetails,
 	}, nil
 }
 
+// 统计响应时间，已废弃
 func (s *ModelDomain) ModelRequestTime(req models.ModelWithCodeRequest) (*types.ModelRequestTimeResp, error) {
 	appConfig := config.GetEsConfig()
 	ec := es.NewESService(appConfig)

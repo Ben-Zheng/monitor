@@ -204,28 +204,6 @@ func ParseTimeInput(input string, base time.Time) (int64, error) {
 // 总和在单独计算百分比
 // 英伟达sum(DCGM_FI_DEV_FB_TOTAL)by(modelName)
 // 昇腾floor(sum(npu_chip_info_hbm_total_memory)by(modelName)/1024
-func MergeAndSumMaps(map1, map2 map[string]int) map[string]int {
-	// 创建结果map
-	result := make(map[string]int)
-
-	// 复制第一个map的所有内容
-	for key, value := range map1 {
-		result[key] = value
-	}
-
-	// 遍历第二个map，并合并到结果map中
-	for key, value := range map2 {
-		// 如果键已存在，则值相加
-		if existing, ok := result[key]; ok {
-			result[key] = existing + value
-		} else {
-			// 如果键不存在，则直接添加
-			result[key] = value
-		}
-	}
-
-	return result
-}
 
 func ExtractValues(points []types.DataPoint) []int {
 	var values []int
@@ -353,18 +331,69 @@ func SortDataPoints(data []types.DataPoint) (string, error) {
 	return "", fmt.Errorf("data is empty")
 }
 
-func MergeMaps(m1, m2 map[string]int) map[string]int {
-	result := make(map[string]int)
+func GetLastWorkWeekTimestamps() (start, end int64) {
+	now := time.Now().Local()
 
-	// 添加第一个map的所有键值对
-	for k, v := range m1 {
-		result[k] = v
+	// 计算本周周一的0点
+	thisWeekMonday := now.AddDate(0, 0, -int(now.Weekday()-time.Monday))
+	thisWeekMondayMidnight := time.Date(thisWeekMonday.Year(), thisWeekMonday.Month(), thisWeekMonday.Day(), 0, 0, 0, 0, now.Location())
+
+	// 计算上周周一的0点（本周周一减去7天）
+	lastWeekMondayMidnight := thisWeekMondayMidnight.AddDate(0, 0, -7)
+
+	// 计算上周周五的中午12:00:00（上周周一加4天）
+	lastWeekFridayNoon := lastWeekMondayMidnight.AddDate(0, 0, 4).Add(12 * time.Hour)
+
+	// 转换为毫秒时间戳
+	start = lastWeekMondayMidnight.UnixNano() / int64(time.Millisecond)
+	end = lastWeekFridayNoon.UnixNano() / int64(time.Millisecond)
+
+	return start, end
+}
+
+func GetWorkdayTimestampsThisWeek() (start, end int64) {
+	now := time.Now().Local()
+
+	// 计算本周周一的0点
+	monday := now.AddDate(0, 0, -int(now.Weekday()-time.Monday))
+	mondayMidnight := time.Date(monday.Year(), monday.Month(), monday.Day(), 0, 0, 0, 0, now.Location())
+
+	// 计算本周周五的23:59:59.999999999
+	friday := mondayMidnight.AddDate(0, 0, 4)
+	fridayEnd := friday.AddDate(0, 0, 1).Add(-time.Nanosecond)
+
+	// 根据当前时间设置结束点
+	endTime := now
+
+	// 如果是周末（周六或周日），则使用本周五结束时间
+	if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
+		endTime = fridayEnd
 	}
 
-	// 合并第二个map
-	for k, v := range m2 {
-		// 如果键已存在则求和，否则直接添加
-		result[k] += v
+	// 如果当前时间早于周一，返回0（不会发生在本周）
+	if now.Before(mondayMidnight) {
+		return 0, 0
 	}
-	return result
+
+	// 如果当前时间在周一之前或周五之后（周末），但确保不超过周五结束时间
+	if endTime.After(fridayEnd) {
+		endTime = fridayEnd
+	}
+
+	// 转换为毫秒时间戳（13位）
+	start = mondayMidnight.UnixNano() / 1e6
+	end = endTime.UnixNano() / 1e6
+
+	return start, end
+}
+
+func GetTimeMinite() string {
+	currentTime := time.Now()
+	formattedTime := currentTime.Format("200601021504")
+	return formattedTime
+}
+
+func DayTomill(days int) int64 {
+	milliseconds := int64(days) * 86400 * 1000
+	return milliseconds
 }

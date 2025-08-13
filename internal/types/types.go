@@ -2,6 +2,7 @@ package types
 
 import (
 	"monitor/internal/models"
+	"monitor/internal/service/dao"
 	"time"
 )
 
@@ -22,6 +23,9 @@ const (
 	NodeNpuPath = "suan-li-jie-dian-gai-lan"
 	NodeGpuUid  = "computing-node-overview"
 	NodeGpuPath = "suan-li-jie-dian-gai-lan"
+
+	ModelFullCheckUid  = "model-full-linkcheck"
+	ModelFullCheckPath = "mo-xing-quan-lian-lu-jian-kong"
 )
 
 type SceneDetail struct {
@@ -101,6 +105,9 @@ type Metric struct {
 	Llm_model string `json:"llm_model,omitempty"`
 	//podId
 	Pod string `json:"pod,omitempty"`
+	// 台账参数
+	Label_llm_model string `json:"label_llm_model,omitempty"` //台账模型名称
+	Resource        string `json:"resource,omitempty"`        //台账显卡型号
 }
 
 // 数据点
@@ -149,7 +156,6 @@ type PagedNodesResponse struct {
 	Data       []models.Node `json:"data"`
 }
 
-// ------------------------------------------------
 type PagedModelsResponse struct {
 	Page       int                `json:"page"`
 	PageSize   int                `json:"page_size"`
@@ -182,7 +188,48 @@ type ModelDetail struct {
 	Logs    *LogDetailResp   `json:"logs"`
 	Details *ModelDetailResp `json:"details"`
 }
+
 type ModelDetailResp struct {
-	ModelDetail     models.ModelCard
-	ModelPodDetails []models.ModelPodDetail
+	SceneDetails []SceneCountData
+}
+
+type ModelDetailTrend struct {
+	ModelDetailTrend []DateCount
+}
+
+type DateCount struct {
+	Date  string `json:"date"`
+	Count int64  `json:"count"`
+}
+
+type SceneInfoItem struct {
+	CallModelName      string `json:"callModelName"`
+	ApisixScenarioName string `json:"apisixScenarioName"`
+	AppScenarioName    string `json:"appScenarioName"`
+	CallModelId        string `json:"callModelId"`
+	DevDept            string `json:"devDept"`
+	DevManager         string `json:"devManager"`
+	EnvAlias           string `json:"envAlias"`
+	EnvName            string `json:"envName"`
+	ModelName          string `json:"modelName"`
+	Token              string `json:"token"`
+	MaxConcurrency     int64  `json:"maxConcurrency"`
+	Status             int    `json:"status"`
+}
+
+type ModelNodeViewDetails struct {
+	Node            string  `json:"node"`
+	Label_llm_model string  `json:"label_llm_model"`
+	Resource        string  `json:"resource"`
+	Core            int     `json:"core"`
+	Pvalue          float64 `json:"pvalue"`
+}
+
+type PagedResponseTask struct {
+	Page       int                `json:"page"`
+	PageSize   int                `json:"page_size"`
+	TotalPages int                `json:"total_pages"`
+	TotalItems int                `json:"total_items"`
+	HasNext    bool               `json:"has_next"`
+	Data       []dao.TaskMetaData `json:"data"`
 }

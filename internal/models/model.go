@@ -1,5 +1,11 @@
 package models
 
+import (
+	"encoding/json"
+	"monitor/internal/service/dao"
+	"time"
+)
+
 type Cluster struct {
 	Label          string  `json:"label"`
 	Name           string  `json:"name"`
@@ -110,6 +116,8 @@ type ModelCard struct {
 	Scene     int     `json:"scene"`    //场景绑定数量
 	Invoking  int64   `json:"invoking"` //模型调用次数
 	Qps       float64 `json:"qps"`      //模型qps
+	Status    string  `json:"status"`
+	Url       string  `json:"url"`
 }
 
 type ModelPodDetail struct {
@@ -152,4 +160,59 @@ type ModelWithCodeRequest struct {
 	To        string `form:"to"`
 	AuthCode  string `form:"authorization_code"`
 	ModelName string `form:"model_name"`
+}
+
+type TaskListRequest struct {
+	Page int    `form:"page"`
+	Size int    `form:"size"`
+	Name string `form:"name"`
+}
+
+type TaskListResp struct {
+	Tasks []dao.TaskMetaData
+	Total int64
+}
+
+type TaskSearchRequest struct {
+	From string `form:"from"`
+	To   string `form:"to"`
+	Page int    `form:"page"`
+	Size int    `form:"size"`
+	Name string `form:"name"`
+}
+
+type DataGenerateReq struct {
+	LedgerType int `form:"ledger_type"`
+	From       int `form:"from"`
+	To         int `form:"to"`
+}
+type TaskMetaRequest struct {
+	Data         json.RawMessage `json:"data"` // 使用 RawMessage 处理动态数据
+	Name         string          `json:"name"`
+	LedgerType   int             `json:"ledger_type"`
+	From         int             `json:"from"`
+	To           int             `json:"to"`
+	ExecuteAt    time.Time       `json:"executeAt"`
+	MailReceiver []string        `json:"mailReceiver"`
+	MailType     int             `json:"mailType"`
+	MailHeader   string          `json:"mailHeader"`
+	Path         string          `json:"path"`
+}
+
+type DownloadLedgerReq struct {
+	LedgerName string `form:"ledger_name"`
+	LedgerType int    `form:"ledger_type"`
+}
+
+type TaskMetaResp struct {
+	//Data         []interface{} `form:"data"`
+	Name         string    `form:"name"`
+	LedgerType   int       `form:"ledger_type"`
+	From         int       `form:"from"`
+	To           int       `form:"to"`
+	ExecuteAt    time.Time `form:"executeAt"`
+	MailReceiver []string  `form:"mailReceiver"`
+	MailType     int       `form:"mailType"`
+	MailHeader   string    `form:"mailHeader"`
+	LedgerPath   string    `form:"ledgerPath"`
 }

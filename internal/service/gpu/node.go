@@ -2,6 +2,7 @@ package gpu
 
 import (
 	"fmt"
+	"log"
 	"monitor/config"
 	"monitor/internal/client"
 	"monitor/internal/types"
@@ -114,35 +115,33 @@ func (q *HandlerNode) getUsedPvalueByNode(modelName string, clusterId string, no
 	var exprUsed string
 	//[modelName]totalPvalue
 	totalMem := getMapInfoByModel(modelName, result)
-
 	if modelName == "Nvidia" {
-		exprUsed = queryStr.makeExprKpandainfo_utilization(clusterId, nodeId)
+		exprUsed = queryStr.makeExprKpandaNode(clusterId, nodeId)
 	} else if modelName == "Ascend" {
-		exprUsed = queryStr.makeExprchip_info_utilization(clusterId, nodeId)
+		exprUsed = queryStr.makeExprKpandaNode(clusterId, nodeId)
 	}
 
 	resultUsedCore, err := q.query.Getinfo(exprUsed)
+
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return nil, err
 	}
 
-	infoMap := make(map[string]int, len(resultUsedCore.Matrix))
-	for i := range result.Matrix {
+	infoMap := make(map[string]int)
+	for i := range resultUsedCore.Matrix {
 		data := util.ExtractValues(resultUsedCore.Matrix[i].Values)
 		avgData, _ := util.CalculateMedian(data)
 		label := resultUsedCore.Matrix[i].Metric.Node
-		infoMap[label] += avgData
+		infoMap[label] = avgData
 	}
-
-	usedMem := make(map[string]int)
-	for model, _ := range totalMem {
-		usedMem[model] = infoMap[nodeId]
-	}
-
 	totalMemP := calPvalue(q.query.Rule, totalMem)
+	//[modetal]pvalue
 	usedMemP := make(map[string]int)
-	usedMemP[nodeId] = totalMemP[nodeId] * infoMap[nodeId] / 100
+	for k, v := range totalMemP {
+		percent := int(float64(infoMap[nodeId]) / float64(totalMem[k]) * 100)
+		usedMemP[nodeId] = v * percent / 100
+	}
 	return usedMemP, nil
 }
 
@@ -174,6 +173,11 @@ func (q *HandlerNode) getTotalCoreByNode(modelName string, clusterId string, nod
 }
 
 func getMapInfoNode(result *types.VectorResponse) map[string]int {
+
+	if result == nil || len(result.Matrix) == 0 {
+		return make(map[string]int)
+	}
+
 	infoMap := make(map[string]int, len(result.Matrix))
 	for i := range result.Matrix {
 		data := util.ExtractValues(result.Matrix[i].Values)

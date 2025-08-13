@@ -7,6 +7,11 @@ import (
 )
 
 func getMapInfoByModel(modelName string, result *types.VectorResponse) map[string]int {
+
+	if result == nil || len(result.Matrix) == 0 {
+		return make(map[string]int)
+	}
+
 	infoMap := make(map[string]int, len(result.Matrix))
 	for i := range result.Matrix {
 		data := util.ExtractValues(result.Matrix[i].Values)

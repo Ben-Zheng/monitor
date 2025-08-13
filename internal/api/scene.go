@@ -54,14 +54,6 @@ func (s *Scene) CountScenes(ctx *gin.Context) {
 	sl := scene.NewSceneReq(scnenLabel)
 	cards, err := sl.SceneCountCards(params)
 
-	// 格式化打印JSON
-	//if jsonData, err := json.MarshalIndent(result.Success(gin.H{"data": cards}), "", "  "); err == nil {
-	//	fmt.Println("JSON格式响应:")
-	//	fmt.Println(string(jsonData))
-	//} else {
-	//	fmt.Println("JSON序列化失败:", err)
-	//}
-
 	ctx.JSON(http.StatusOK, result.Success(gin.H{"data": cards}))
 
 }
@@ -97,13 +89,6 @@ func (s *Scene) CountModels(ctx *gin.Context) {
 		log.Println(err)
 		ctx.JSON(http.StatusOK, result.Fail(http.StatusInternalServerError, "Internal service error"))
 	}
-	//
-	//if jsonData, err := json.MarshalIndent(result.Success(gin.H{"data": detail}), "", "  "); err == nil {
-	//	fmt.Println("JSON格式响应:")
-	//	fmt.Println(string(jsonData))
-	//} else {
-	//	fmt.Println("JSON序列化失败:", err)
-	//}
 	ctx.JSON(http.StatusOK, result.Success(gin.H{
 		"data": detail,
 	}))
@@ -133,12 +118,6 @@ func (s *Scene) CountModelDetail(ctx *gin.Context) {
 		log.Println(err)
 		ctx.JSON(http.StatusOK, result.Fail(http.StatusInternalServerError, "Internal service error"))
 	}
-	//if jsonData, err := json.MarshalIndent(result.Success(gin.H{"data": reqTimeResp}), "", "  "); err == nil {
-	//	fmt.Println("JSON格式响应:")
-	//	fmt.Println(string(jsonData))
-	//} else {
-	//	fmt.Println("JSON序列化失败:", err)
-	//}
 	ctx.JSON(http.StatusOK, result.Success(gin.H{
 		"data": reqTimeResp,
 	}))

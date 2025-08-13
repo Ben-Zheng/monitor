@@ -22,7 +22,7 @@ type QueryGrafanaInfoRepo interface {
 	GetNodeTotalDetailByNode(clusterId string, NodeId string) (map[string]int, error)
 	GetNodeUsedDetailByNode(clusterId string, NodeId string) (map[string]int, error)
 	GetNodeTotal() (map[string]int, error)
-	CalNodesPvalueDetailByModel(clusterId, nodeId string) (map[string]int, error)
+	CalNodesPvalueDetailByModel(clusterId, nodeId, modeStr string) (map[string]int, error)
 
 	GetNodeTotalPValue() (map[string]int, error)
 	GetNodeUsedPValue() (map[string]int, error)
@@ -40,4 +40,5 @@ type QueryGrafanaInfoRepo interface {
 	SetNodeId(nodeId string)
 	GetModeStr(clusterId string) string
 	SetModeStr(clusterId string)
+	GetRule() map[string]float64
 }

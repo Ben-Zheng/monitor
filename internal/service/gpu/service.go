@@ -110,7 +110,9 @@ func GetClustersInfo(ctx context.Context, req models.ClusterListRequest, from_ti
 			TotalPValue:    float64(metrics["totalPvalue"]) / 100.0,
 		})
 	}
-
+	if req.Size <= 0 {
+		req.Size = 10 // 设置默认页大小
+	}
 	totalItems := len(clusters)
 	totalPages := totalItems / req.Size
 	if totalItems%req.Size != 0 {
@@ -230,11 +232,11 @@ func GetClusterDetailByModel(ctx context.Context, param models.DetailRequest, fr
 	queryClient := NewQueryGrafana(from_timestamp, to_timestamp, ctx, baseUrl)
 	res, err := queryClient.GetClusterUsedDetailByModel(param.Cluster, modeStr)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	resTotal, err := queryClient.GetClusterTotalDetailByModel(param.Cluster, modeStr)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	//当前节点的分型号缓存和当前集群的分型号缓存
 	var total int
@@ -274,14 +276,13 @@ func GetClusterDetailPValueByModel(ctx context.Context, param models.DetailReque
 
 }
 
-func GetNodesPvalueDetailByModel(ctx context.Context, param models.DetailRequest, from_timestamp, to_timestamp int64, baseUrl string) []models.ModelPvalueResponse {
+func GetNodesPvalueDetailByModel(ctx context.Context, param models.DetailRequest, from_timestamp, to_timestamp int64, baseUrl string, modeStr string) []models.ModelPvalueResponse {
 	queryClient := NewQueryGrafana(from_timestamp, to_timestamp, ctx, baseUrl)
 	c := config.GetGrafanaQueryConfig()
 	client := client.NewDCEClient(ctx, c.ClusterBaseURL, c.InsecureSkipVerify)
 	cluNames := client.GetClusterName("/apis/insight.io/v1alpha1/metric/queryrange")
 	queryClient.SetClusterName(cluNames)
-
-	pvalueMap, err := queryClient.CalNodesPvalueDetailByModel(param.Cluster, param.Node)
+	pvalueMap, err := queryClient.CalNodesPvalueDetailByModel(param.Cluster, param.Node, modeStr)
 
 	if err != nil {
 		fmt.Println(err)

@@ -31,6 +31,7 @@ func TestReplaceIKey(t *testing.T) {
 	a := "1233"
 	fmt.Println(b + a)
 }
+
 func TestProscessStr(t *testing.T) {
 	a := "(已下线)01jxm5r2#交银重点产品个性化方案推荐生成助手#Qwen2.5-vl-32B(910b)"
 	b := ProcessSceneString(a)
@@ -59,11 +60,13 @@ func TestGenerateAPIKey(t *testing.T) {
 }
 
 func TestGetTime(t *testing.T) {
-	dataStr := "Thu Jul 10 2025 00:00:00 GMT+0800 (中国标准时间)"
-	exp, err := ParseTimeInput(dataStr, time.Now())
-	if err != nil {
-		fmt.Println(err)
-	}
+	from, to := GetLastWorkWeekTimestamps()
+	fmt.Println(from, to)
+}
 
-	fmt.Println(exp)
+func TestGetMinit(t *testing.T) {
+	var err error
+	if err != nil {
+		fmt.Println(":sdfs")
+	}
 }

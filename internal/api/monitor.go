@@ -2,8 +2,8 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
+	"log"
 	"monitor/config"
-	"monitor/internal/cache"
 	"monitor/internal/client"
 	"monitor/internal/common"
 	"monitor/internal/models"
@@ -17,13 +17,10 @@ import (
 )
 
 type ServiceContext struct {
-	Cache *cache.SharedCache
 }
 
 func NewServiceContext() *ServiceContext {
-	return &ServiceContext{
-		Cache: cache.NewSharedCache(),
-	}
+	return &ServiceContext{}
 }
 
 func (s *ServiceContext) ListClusterName(ctx *gin.Context) {
@@ -60,6 +57,45 @@ func (s *ServiceContext) ListCluster(ctx *gin.Context) {
 	from_timestamp, _ := util.ParseTimeInput(params.From, baseTime)
 	to_timestamp, _ := util.ParseTimeInput(params.To, baseTime)
 	info := gpu.GetClustersInfo(ctx, params, from_timestamp, to_timestamp)
+
+	//task := ledger.NewTaskDomain(ctx)
+
+	//HighLevelLedgerClass := task.GenerateLedgerData(2, 1754236800000, 1754625600000)
+	//h := excel.NewLargeInvokingexcel()
+	////taskresult := h.GenerateLedgerExcel(HighLevelLedgerClass.Data.([]excel.ServiceRecord))
+	//
+	//var buf *bytes.Buffer
+	//if dataRows, ok := HighLevelLedgerClass.Data.([]excel.ServiceRecord); ok {
+	//	buf = h.GenerateLedgerExcel(dataRows)
+	//} else {
+	//	log.Println("转换失败")
+	//}
+
+	//taskresult := task.GenerateLedgerData(1, 1754236800000, 1754625600000)
+	//log.Println("==========================================================================")
+	//log.Println("==================================taskresult", taskresult)
+	//log.Println("==========================================================================")
+	//h := excel.NewHighLevel()
+	////buf := h.GenerateLedger(taskresult.Data.([]excel.DataRow))
+	//var buf *bytes.Buffer
+	//if dataRows, ok := taskresult.Data.([]excel.DataRow); ok {
+	//	buf = h.GenerateLedger(dataRows)
+	//} else {
+	//	log.Println("转换失败")
+	//}
+	// 6. 设置 HTTP 响应头（关键步骤）
+	//fmt.Println(result.Success(gin.H{
+	//	"data": info,
+	//}))
+	// 3. 设置响应头
+
+	//
+	//LargeModelSupportLedgerClass := task.GenerateLedgerData(3, 1754236800000, 1754625600000)
+	//l.GenerateLedgerExcel(LargeModelSupportLedgerClass.Data.([]excel.ServiceRecord))
+	//
+	//SceneDetailLedgerClass := task.GenerateLedgerData(4, 1754236800000, 1754625600000)
+	//sl := excel.NewServiceLedgerDetail()
+	//sl.GenerateServiceLedger(SceneDetailLedgerClass.Data.([]excel.Record))
 
 	ctx.JSON(http.StatusOK, result.Success(gin.H{
 		"data": info,
@@ -142,7 +178,7 @@ func (s *ServiceContext) ClusterDetail(ctx *gin.Context) {
 
 	var uid string
 	var path string
-	baseUrl := config.GetGrafanaQueryConfig().ClusterBaseURL
+	grafanaQuery := config.GetGrafanaQueryConfig()
 	if config.GetGrafanaQueryConfig().Mock == 1 {
 		modeStr = "GPU"
 	}
@@ -160,11 +196,13 @@ func (s *ServiceContext) ClusterDetail(ctx *gin.Context) {
 	lang := common.LangEn
 
 	// 调用函数构建 URL
-	clusterInfo := gpu.GetClusterDetailByModel(ctx, params, from_timestamp, to_timestamp, baseUrl, modeStr)
-	resPvalue := gpu.GetClusterDetailPValueByModel(ctx, params, from_timestamp, to_timestamp, baseUrl, modeStr, cluNames)
-	coreInfo := gpu.GetCoresByCluster(ctx, params, from_timestamp, to_timestamp, baseUrl, cluNames)
+	clusterInfo := gpu.GetClusterDetailByModel(ctx, params, from_timestamp, to_timestamp, grafanaQuery.ClusterBaseURL, modeStr)
+	resPvalue := gpu.GetClusterDetailPValueByModel(ctx, params, from_timestamp, to_timestamp, grafanaQuery.ClusterBaseURL, modeStr, cluNames)
+	coreInfo := gpu.GetCoresByCluster(ctx, params, from_timestamp, to_timestamp, grafanaQuery.ClusterBaseURL, cluNames)
 
+	log.Println("GrafanaDashBoard:", grafanaQuery.GrafanaDashBoard)
 	infoUrl := common.BuildGrafanaDashboardURL(uid, path, vars, queries, lang)
+
 	modelVar := map[string][]string{
 		"cluster_name": {clusterName},
 		"mode":         {strings.ToUpper(modeStr)},
@@ -247,7 +285,7 @@ func (s *ServiceContext) NodeDetail(ctx *gin.Context) {
 	url := common.BuildGrafanaDashboardURL(uid, path, vars, queries, lang)
 
 	nodeInfo := gpu.GetNodesDetailByModel(ctx, params, from_timestamp, to_timestamp, baseUrl)
-	Pvalues := gpu.GetNodesPvalueDetailByModel(ctx, params, from_timestamp, to_timestamp, baseUrl)
+	Pvalues := gpu.GetNodesPvalueDetailByModel(ctx, params, from_timestamp, to_timestamp, baseUrl, modeStr)
 	coreInfo := gpu.GetCoresByNode(ctx, params, from_timestamp, to_timestamp, baseUrl)
 
 	modelUid := types.NodeModelUid

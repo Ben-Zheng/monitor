@@ -2,6 +2,7 @@ package gpu
 
 import (
 	"fmt"
+	"log"
 	"monitor/util"
 )
 
@@ -25,6 +26,11 @@ func (q *HandlerCore) getAscendTotalCore() (map[string]int, error) {
 		fmt.Println(err)
 		return nil, err
 	}
+
+	if result == nil || len(result.Matrix) == 0 {
+		return make(map[string]int), err
+	}
+
 	infoMap := make(map[string]int, len(result.Matrix))
 	for i := range result.Matrix {
 		data := util.ExtractValues(result.Matrix[i].Values)
@@ -39,7 +45,7 @@ func (q *HandlerCore) getNvidiaTotalCore() (map[string]int, error) {
 	exprCores := queryStr.makeTotalExpr("Nvidia", "cluster", "all", "count", "", "")
 	result, err := q.query.Getinfo(exprCores)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return nil, err
 	}
 
@@ -60,6 +66,10 @@ func (q *HandlerCore) getAscendNodesTotalMCore(clusterID string) (map[string]int
 		fmt.Println(err)
 		return nil, err
 	}
+
+	if result == nil || len(result.Matrix) == 0 {
+		return make(map[string]int), err
+	}
 	infoMap := make(map[string]int, len(result.Matrix))
 	for i := range result.Matrix {
 		data := util.ExtractValues(result.Matrix[i].Values)
@@ -77,7 +87,9 @@ func (q *HandlerCore) getNvidiaNodesTotalMCore(clusterID string) (map[string]int
 		fmt.Println(err)
 		return nil, err
 	}
-
+	if result == nil || len(result.Matrix) == 0 {
+		return make(map[string]int), err
+	}
 	infoMap := make(map[string]int, len(result.Matrix))
 	for i := range result.Matrix {
 		data := util.ExtractValues(result.Matrix[i].Values)

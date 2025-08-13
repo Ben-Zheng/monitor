@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"log"
 	"monitor/config"
 	"net/url"
 )
@@ -39,7 +40,11 @@ func BuildGrafanaDashboardURL(uid, path string, vars map[string][]string, querie
 	qq, _ := url.ParseQuery(q.Encode()) // copy
 	qq.Add("var-lang", string(lang))
 	u.RawQuery = qq.Encode()
-	return u.String()
+	baseUrl := config.GetGrafanaQueryConfig().GrafanaDashBoard
+	url := baseUrl + u.String()
+	fmt.Println(url)
+	log.Println(url)
+	return url
 }
 
 func GenerateDocURL(cfg config.KibanaConfig, docID string) (string, error) {
@@ -48,6 +53,6 @@ func GenerateDocURL(cfg config.KibanaConfig, docID string) (string, error) {
 	}
 	index := config.GetEsConfig().Index
 	indexId := config.GetKibanaConfig().IndexPatternID
-
-	return fmt.Sprintf("/app/discover#/doc/%s/%s?id=%s", indexId, index, docID), nil
+	urlStr := config.GetKibanaConfig().Url + fmt.Sprintf("/app/discover#/doc/%s/%s?id=%s", indexId, index, docID)
+	return urlStr, nil
 }

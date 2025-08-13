@@ -177,12 +177,12 @@ func (q *QueryGrafana) GetNodeUsedDetailByNode(clusterId string, NodeId string) 
 	}
 	return nodeMem, nil
 }
-func (q *QueryGrafana) CalNodesPvalueDetailByModel(clusterId, nodeId string) (nodeMem map[string]int, err error) {
+func (q *QueryGrafana) CalNodesPvalueDetailByModel(clusterId, nodeId, modeStr string) (nodeMem map[string]int, err error) {
 	handler := NewHandlerNode(q, clusterId)
 	nodeMem = make(map[string]int)
-	if strings.ToLower(handler.modeStr) == "gpu" {
+	if strings.ToLower(modeStr) == "gpu" {
 		nodeMem, _ = handler.getUsedPvalueByNode("Nvidia", clusterId, nodeId)
-	} else if strings.ToLower(handler.modeStr) == "npu" {
+	} else if strings.ToLower(modeStr) == "npu" {
 		nodeMem, _ = handler.getUsedPvalueByNode("Ascend", clusterId, nodeId)
 	}
 	return nodeMem, nil
@@ -325,6 +325,7 @@ func (q *QueryGrafana) Getinforange(expr string) (*types.VectorResponse, error) 
 
 	return result, err
 }
+
 func (q *QueryGrafana) SetClusterName(names []types.NameList) {
 	q.ClusterName = names
 }
@@ -332,4 +333,8 @@ func (q *QueryGrafana) SetClusterName(names []types.NameList) {
 func (q *QueryGrafana) SetModeStr(clusterId string) {
 	modeStr := GetClusterType(q.Ctx, clusterId, q.From, q.To)
 	q.ModeStr = modeStr
+}
+
+func (q *QueryGrafana) GetRule() map[string]float64 {
+	return q.Rule
 }

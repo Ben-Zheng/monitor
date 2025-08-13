@@ -29,7 +29,7 @@ func BuildModelQueryRange(data_name, keyword, start, end string) map[string]stri
 
 func makeProbeExpr(modelName string) string {
 	var expr string
-	expr = fmt.Sprintf("probe_success{llm_model=~\"%s.*\"}", modelName)
+	expr = fmt.Sprintf("probe_success{llm_model=\"%s\"}", modelName)
 	return expr
 }
 

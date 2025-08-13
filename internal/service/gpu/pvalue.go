@@ -2,6 +2,7 @@ package gpu
 
 import (
 	"fmt"
+	"log"
 	"monitor/internal/types"
 	"monitor/util"
 	"strings"
@@ -58,6 +59,10 @@ func (q *HandlerPvalue) getCountUsedcore(modelName, clusterId string) map[string
 		fmt.Println(err)
 	}
 
+	if result == nil || len(result.Matrix) == 0 {
+		return make(map[string]int)
+	}
+
 	infoMap := make(map[string]int, len(result.Matrix))
 	for i := range result.Matrix {
 		data := util.ExtractValues(result.Matrix[i].Values)
@@ -99,7 +104,7 @@ func (q *HandlerPvalue) getCountUsedByModelNameAllNode(modelName, clusterId stri
 		data := util.ExtractValues(resultUsedCore.Matrix[i].Values)
 		avgData, _ := util.CalculateMedian(data)
 		label := resultUsedCore.Matrix[i].Metric.Node
-		infoMap[label] += avgData
+		infoMap[label] = avgData
 	}
 
 	usedCount := q.getMapInfoByModelNodeUsed(modelName, result, infoMap)
@@ -119,6 +124,11 @@ func (q *HandlerPvalue) getCountTotalByModelNameCluster(modelName, clusterId str
 }
 
 func (q *HandlerPvalue) getMapInfoByModelNode(modelName string, result *types.VectorResponse) map[string]int {
+
+	if result == nil || len(result.Matrix) == 0 {
+		return make(map[string]int)
+	}
+
 	mems := make(map[string]int, len(result.Matrix))
 	for i := range result.Matrix {
 		data := util.ExtractValues(result.Matrix[i].Values)
@@ -132,8 +142,16 @@ func (q *HandlerPvalue) getMapInfoByModelNode(modelName string, result *types.Ve
 
 		model = strings.ToLower(model)
 		node := result.Matrix[i].Metric.Node
+		if q.query.Rule == nil {
+			return make(map[string]int)
+		}
+		rule, exists := q.query.Rule[model]
+		if !exists {
+			log.Printf("模型 %s 的规则不存在", model)
+			rule = 1.0 // 使用默认值
+		}
 
-		cal := int(q.query.Rule[model] * float64(mem) * 100)
+		cal := int(rule * float64(mem) * 100)
 		mems[node] = cal
 	}
 
@@ -141,6 +159,10 @@ func (q *HandlerPvalue) getMapInfoByModelNode(modelName string, result *types.Ve
 }
 
 func (q *HandlerPvalue) getMapInfoByModelNodeUsed(modelName string, result *types.VectorResponse, usedCore map[string]int) map[string]int {
+	if result == nil || len(result.Matrix) == 0 {
+		return make(map[string]int)
+	}
+
 	mems := make(map[string]int, len(result.Matrix))
 	for i := range result.Matrix {
 		data := util.ExtractValues(result.Matrix[i].Values)
@@ -155,7 +177,7 @@ func (q *HandlerPvalue) getMapInfoByModelNodeUsed(modelName string, result *type
 		model = strings.ToLower(model)
 		node := result.Matrix[i].Metric.Node
 
-		cal := int(q.query.Rule[model] * float64(usedCore[node]) / float64(mem) * 100)
+		cal := int(q.query.Rule[model] * float64(mem) * float64(usedCore[node]) / float64(mem) * 100)
 
 		mems[node] = cal
 

@@ -1,154 +1,164 @@
 package cache
 
 import (
-	"log"
-	"os"
-	"os/signal"
+	"context"
+	"fmt"
+	"github.com/patrickmn/go-cache"
 	"sync"
-	"syscall"
 	"time"
 )
 
-// 全局缓存结构
-type SharedCache struct {
-	data          sync.Map      // 核心并发安全存储
-	expirationMap sync.Map      // 过期时间管理
-	cleanupTicker *time.Ticker  // 清理定时器
-	shutdownChan  chan struct{} // 关闭信号
+const (
+	DefaultExpiration      = 5 * time.Minute  // 默认缓存过期时间
+	DefaultCleanupInterval = 10 * time.Minute // 默认清理间隔
+)
+
+// Cache 接口定义
+type Cache interface {
+	Get(ctx context.Context, key string) (interface{}, bool)
+	Set(ctx context.Context, key string, value interface{}, ttl time.Duration)
+	SetDefault(ctx context.Context, key string, value interface{})
+	Delete(ctx context.Context, key string)
+	Flush(ctx context.Context)
+	Items() map[string]cache.Item
+	ItemCount() int
+	GetOrSet(ctx context.Context, key string, loader LoaderFunc, ttl time.Duration) (interface{}, error)
+	GetItemsWithValues() map[string]interface{}
 }
 
-// 缓存值（可根据需要扩展）
-type CacheValue struct {
-	Value  interface{} `json:"value"`  // 实际存储的值
-	Expire int64       `json:"expire"` // Unix时间戳，0表示永不过期
+// LoaderFunc 缓存加载函数
+type LoaderFunc func(ctx context.Context) (interface{}, error)
+
+// goCache 包装 go-cache 的实现
+type goCache struct {
+	cache     *cache.Cache
+	loaderMap *sync.Map
 }
 
-func NewSharedCache() *SharedCache {
-	cache := &SharedCache{
-		shutdownChan: make(chan struct{}),
-	}
-
-	// 启动定期清理任务
-	cache.cleanupTicker = time.NewTicker(500 * time.Minute)
-	go cache.startCleanupTask()
-
-	// 注册优雅退出
-	cache.setupGracefulShutdown()
-
-	return cache
-}
-
-// Set 存储键值对
-func (c *SharedCache) Set(key string, value interface{}, ttl time.Duration) {
-	expire := int64(0)
-	if ttl > 0 {
-		expire = time.Now().Add(ttl).Unix()
-	}
-
-	cv := CacheValue{
-		Value:  value,
-		Expire: expire,
-	}
-
-	c.data.Store(key, cv)
-	if expire > 0 {
-		c.expirationMap.Store(key, expire)
+// New 创建缓存实例
+func New() Cache {
+	c := cache.New(DefaultExpiration, DefaultCleanupInterval)
+	return &goCache{
+		cache:     c,
+		loaderMap: new(sync.Map),
 	}
 }
 
-// SetWithoutExpire 存储永不过期的键值对
-func (c *SharedCache) SetWithoutExpire(key string, value interface{}) {
-	c.Set(key, value, 0)
-}
-
-// Get 获取键值
-func (c *SharedCache) Get(key string) (interface{}, bool) {
-	value, found := c.data.Load(key)
-	if !found {
-		return nil, false
-	}
-
-	cv, ok := value.(CacheValue)
-	if !ok {
-		return nil, false
-	}
-
-	// 检查是否过期
-	if cv.Expire > 0 && cv.Expire < time.Now().Unix() {
-		c.data.Delete(key)
-		c.expirationMap.Delete(key)
-		return nil, false
-	}
-	return cv.Value, true
-}
-
-// GetAndUpdate 获取并更新值
-func (c *SharedCache) GetAndUpdate(key string, updater func(interface{}) interface{}) {
-	value, found := c.data.Load(key)
-
-	var cv CacheValue
-	if found {
-		cv = value.(CacheValue)
-	} else {
-		cv = CacheValue{}
-	}
-
-	newValue := updater(cv.Value)
-	cv.Value = newValue
-
-	c.data.Store(key, cv)
-}
-
-// Delete 删除键
-func (c *SharedCache) Delete(key string) {
-	c.data.Delete(key)
-	c.expirationMap.Delete(key)
-}
-
-// Cleanup 定期清理过期项
-func (c *SharedCache) Cleanup() {
-	now := time.Now().Unix()
-	count := 0
-	c.expirationMap.Range(func(key, value interface{}) bool {
-		expire := value.(int64)
-		if expire > 0 && expire < now {
-			c.data.Delete(key)
-			c.expirationMap.Delete(key)
-			count++
-		}
-		return true
-	})
-	if count > 0 {
-		log.Printf("清理了 %d 个过期项", count)
+// NewWithConfig 创建带自定义配置的缓存
+func NewWithConfig(defaultExpiration, cleanupInterval time.Duration) Cache {
+	c := cache.New(defaultExpiration, cleanupInterval)
+	return &goCache{
+		cache:     c,
+		loaderMap: new(sync.Map),
 	}
 }
 
-// startCleanupTask 启动清理定时任务
-func (c *SharedCache) startCleanupTask() {
-	for {
-		select {
-		case <-c.cleanupTicker.C:
-			c.Cleanup()
-		case <-c.shutdownChan:
-			c.cleanupTicker.Stop()
-			log.Println("清理任务已停止")
-			return
-		}
-	}
+func (c *goCache) Get(ctx context.Context, key string) (interface{}, bool) {
+	return c.cache.Get(key)
 }
 
-// setupGracefulShutdown 设置优雅退出
-func (c *SharedCache) setupGracefulShutdown() {
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+func (c *goCache) Set(ctx context.Context, key string, value interface{}, ttl time.Duration) {
+	c.cache.Set(key, value, ttl)
+}
 
-	go func() {
-		<-sig
-		log.Println("收到停止信号，准备关闭...")
-		// 停止清理任务
-		close(c.shutdownChan)
+func (c *goCache) SetDefault(ctx context.Context, key string, value interface{}) {
+	c.cache.SetDefault(key, value)
+}
 
-		log.Println("服务已停止")
-		os.Exit(0)
+func (c *goCache) Delete(ctx context.Context, key string) {
+	c.cache.Delete(key)
+}
+
+func (c *goCache) Flush(ctx context.Context) {
+	c.cache.Flush()
+}
+
+// 修正：正确返回 go-cache 的 Items 结构
+func (c *goCache) Items() map[string]cache.Item {
+	return c.cache.Items()
+}
+
+func (c *goCache) ItemCount() int {
+	return c.cache.ItemCount()
+}
+
+// 新增方法：获取所有缓存项的键值对（不包含元数据）
+func (c *goCache) GetItemsWithValues() map[string]interface{} {
+	items := c.cache.Items()
+	result := make(map[string]interface{}, len(items))
+	for k, item := range items {
+		result[k] = item.Object
+	}
+	return result
+}
+
+func (c *goCache) GetOrSet(ctx context.Context, key string, loader LoaderFunc, ttl time.Duration) (interface{}, error) {
+	// 尝试直接获取缓存
+	if val, found := c.Get(ctx, key); found {
+		return val, nil
+	}
+
+	// 创建或获取加载锁
+	var mu *sync.Mutex
+	val, _ := c.loaderMap.LoadOrStore(key, &sync.Mutex{})
+	mu = val.(*sync.Mutex)
+	mu.Lock()
+	defer func() {
+		mu.Unlock()
+		c.loaderMap.Delete(key)
 	}()
+
+	// 再次检查缓存（防止并发期间已被其他协程填充）
+	if val, found := c.Get(ctx, key); found {
+		return val, nil
+	}
+
+	// 执行加载函数
+	value, err := loader(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("loader error: %w", err)
+	}
+
+	// 设置缓存
+	c.Set(ctx, key, value, ttl)
+	return value, nil
+}
+
+// 获取项目并更新过期时间
+func (c *goCache) GetAndRefresh(ctx context.Context, key string, ttl time.Duration) (interface{}, bool) {
+	value, found := c.Get(ctx, key)
+	if found {
+		c.Set(ctx, key, value, ttl)
+	}
+	return value, found
+}
+
+// 获取项目过期时间
+func (c *goCache) GetExpiration(ctx context.Context, key string) (time.Time, bool) {
+	items := c.Items()
+	if item, exists := items[key]; exists {
+		// go-cache 的 Expiration 字段是 int64 纳秒时间戳
+		return time.Unix(0, item.Expiration), true
+	}
+	return time.Time{}, false
+}
+
+// 手动删除过期项目
+func (c *goCache) DeleteExpired(ctx context.Context) {
+	now := time.Now().UnixNano()
+	items := c.Items()
+	for key, item := range items {
+		if now > item.Expiration {
+			c.Delete(ctx, key)
+		}
+	}
+}
+
+// 添加项目（仅当不存在时）
+func (c *goCache) Add(ctx context.Context, key string, value interface{}, ttl time.Duration) bool {
+	if _, exists := c.Get(ctx, key); exists {
+		return false
+	}
+	c.Set(ctx, key, value, ttl)
+	return true
 }
